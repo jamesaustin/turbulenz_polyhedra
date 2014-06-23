@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>turbulenz polyhedra</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="css/normalize.css">
+        <link rel="stylesheet" href="css/main.css">
+    </head>
+    <body>
+        <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+        <script type="text/javascript" src="js/stats.min.js"></script>
+        <script type="text/javascript">
+            /* Stats setup */
+            stats = new Stats();
+            document.body.appendChild(stats.domElement);
+            stats.domElement.style.position = "absolute";
+            stats.domElement.style.top = "0px";
+
+            var TurbulenzEngine = {};
+        </script>
+        <script type="text/javascript" src="jslib/vmath.js"></script>
+        <script type="text/javascript" src="jslib/observer.js"></script>
+        <script type="text/javascript" src="jslib/utilities.js"></script>
+        <script type="text/javascript" src="jslib/webgl/graphicsdevice.js"></script>
+        <script type="text/javascript" src="jslib/webgl/inputdevice.js"></script>
+        <script type="text/javascript" src="jslib/webgl/mathdevice.js"></script>
+        <script type="text/javascript" src="jslib/webgl/turbulenzengine.js"></script>
+        <script type="text/javascript" src="jslib/requesthandler.js"></script>
+        <script type="text/javascript" src="jslib/texturemanager.js"></script>
+        <script type="text/javascript" src="jslib/shadermanager.js"></script>
+        <script type="text/javascript" src="jslib/camera.js"></script>
+        <script type="text/javascript" src="jslib/drawprimitives.js"></script>
+
+        <script type="text/javascript" src="scripts/motion.js"></script>
+        <script type="text/javascript" src="scripts/hexahedron.js"></script>
+        <script type="text/javascript" src="scripts/tetrahedron.js"></script>
+        <script type="text/javascript" src="scripts/icosahedron.js"></script>
+        <script type="text/javascript" src="scripts/octahedron.js"></script>
+        <script type="text/javascript" src="scripts/sphere.js"></script>
+
+        <canvas id="canvas" width="800px" height="600px"/>
+
+        <script>
+            /* Turbulenz setup */
+            TurbulenzEngine = WebGLTurbulenzEngine.create({
+                canvas: document.getElementById("canvas")
+            });
+
+            var graphicsDevice = TurbulenzEngine.createGraphicsDevice({});
+            var mathDevice = TurbulenzEngine.createMathDevice({});
+            var inputDevice = TurbulenzEngine.createInputDevice({});
+            var requestHandler = RequestHandler.create({});
+            var textureManager = TextureManager.create(graphicsDevice, requestHandler);
+            var shaderManager = ShaderManager.create(graphicsDevice, requestHandler);
+
+            var camera = Camera.create(mathDevice);
+            var origin = mathDevice.v3Build(0, 0, 0),
+                worldUp = mathDevice.v3BuildYAxis();
+            var orbit = Motion.create(mathDevice, "orbitCam");
+            orbit.setCircularMovement(5.0, origin);
+            orbit.setConstantMotion(0.03);
+
+            var scale = 1.0;
+            var clearColor = [0.080, 0.182, 0.299, 1.0];
+            var colors = [
+                [0.722, 0.000, 0.181, 1.000], // red
+                [0.943, 0.573, 0.129, 1.000], // yellow
+                [0.264, 0.781, 0.181, 1.000], // green
+                [0.190, 0.493, 0.872, 1.000], // blue
+                [0.607, 0.094, 0.568, 1.000], // purple
+                [0.199, 0.199, 0.199, 1.000], // grey
+            ]
+
+            var renderIndex = 0;
+            var renderObjects = [ tetrahedron, hexahedron, octahedron, icosahedron, sphere ];
+            for (var n = 0; n < renderObjects.length; n += 1) {
+                renderObjects[n].init(scale, colors);
+            }
+
+            var keyCodes = inputDevice.keyCodes;
+            var keyDown = function keyDownFn(key) {
+                if (key === keyCodes.SPACE) {
+                    orbit.setConstantMotion(0.5);
+                }
+            }
+            var keyUp = function keyUpFn(key) {
+                if (key === keyCodes.SPACE) {
+                    orbit.setConstantMotion(0.05);
+                } else if (key === keyCodes.EQUALS) {
+                    renderIndex += 1;
+                    renderIndex %= renderObjects.length;
+                }
+            }
+            inputDevice.addEventListener('keydown', keyDown);
+            inputDevice.addEventListener('keyup', keyUp);
+  
+            var shader = null;
+            var technique = null;
+
+            var debug = true;
+            if (debug) {
+                shaderManager.load('static/debug.cgfx.json', function onloadFn(s) {
+                    shader = s;
+                    technique = shader.getTechnique("debug_normals");
+                });
+            } else {
+                shaderManager.load('static/shaders.cgfx.json', function onloadFn(s) {
+                    shader = s;
+                    technique = shader.getTechnique("blinn");
+                });
+                
+            }
+
+            var primitive = graphicsDevice.PRIMITIVE_TRIANGLES;
+            var semantics = graphicsDevice.createSemantics([
+                graphicsDevice.SEMANTIC_POSITION,
+                graphicsDevice.SEMANTIC_NORMAL,
+                graphicsDevice.SEMANTIC_COLOR
+            ]);
+            var techniqueParameters = graphicsDevice.createTechniqueParameters({
+                constantColor: [1.0, 0.0, 0.0, 1.0],
+                worldInverseTranspose: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+            });
+
+            var previousFrameTime = TurbulenzEngine.time;
+            var renderFrame = function renderFrameFn() {
+                var currentTime = TurbulenzEngine.time;
+                var deltaTime = (currentTime - previousFrameTime);
+
+                orbit.update(deltaTime);
+                camera.lookAt(origin, worldUp, orbit.position);
+                camera.updateViewMatrix();
+
+                var aspectRatio = (graphicsDevice.width / graphicsDevice.height);
+                if (aspectRatio !== camera.aspectRatio) {
+                    camera.aspectRatio = aspectRatio;
+                    camera.updateProjectionMatrix();
+                }
+                camera.updateViewProjectionMatrix();
+
+                stats.begin();
+                if (graphicsDevice.beginFrame()) {
+                    graphicsDevice.clear(clearColor);
+                    techniqueParameters.worldViewProjection = camera.viewProjectionMatrix;
+                    graphicsDevice.setTechnique(technique);
+                    graphicsDevice.setTechniqueParameters(techniqueParameters);
+
+                    var renderObject = renderObjects[renderIndex];
+                    var vertexBuffer = renderObject.vertexBuffer;
+                    graphicsDevice.setStream(vertexBuffer, semantics);
+
+                    var indexBuffer = renderObject.indexBuffer;
+                    if (indexBuffer) {
+                        graphicsDevice.setIndexBuffer(indexBuffer);
+                        graphicsDevice.drawIndexed(primitive, indexBuffer.numIndices);
+                    } else {
+                        graphicsDevice.draw(primitive, vertexBuffer.numVertices);
+                    }
+
+                    graphicsDevice.endFrame();
+                }
+                stats.end();
+                previousFrameTime = currentTime;
+            };
+
+            var intervalID;
+            var loadingLoop = function loadingLoopFn() {
+                if (technique) {
+                    TurbulenzEngine.clearInterval(intervalID);
+                    intervalID = TurbulenzEngine.setInterval(renderFrame, 1000 / 60);
+                }
+            };
+            intervalID = TurbulenzEngine.setInterval(loadingLoop, 1000 / 10);
+        </script>
+    </body>
+</html>
