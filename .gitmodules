@@ -1,3 +1,6 @@
 [submodule "debug_assets"]
 	path = debug_assets
 	url = git@github.com:jamesaustin/debug_assets.git
+[submodule "engine"]
+	path = engine
+	url = git@github.com:turbulenz/turbulenz_jslib.git
