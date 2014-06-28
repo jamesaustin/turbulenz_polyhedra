@@ -34,11 +34,6 @@
         <script type="text/javascript" src="scripts/motion.js"></script>
 
         <script type="text/javascript" src="scripts/polyhedra.js"></script>
-
-        <script type="text/javascript" src="scripts/hexahedron.js"></script>
-        <script type="text/javascript" src="scripts/tetrahedron.js"></script>
-        <script type="text/javascript" src="scripts/icosahedron.js"></script>
-        <script type="text/javascript" src="scripts/octahedron.js"></script>
         <script type="text/javascript" src="scripts/sphere.js"></script>
 
         <canvas id="canvas" width="800px" height="600px"/>
@@ -139,12 +134,8 @@
             for (var n = 0; n < solids.length; n += 1) {
                 renderObjects.push(polyhedraManager.generate(solids[n]));
             }
-
-            var solids2 = [ tetrahedron, hexahedron, octahedron, icosahedron, sphere ];
-            for (var n = 0; n < solids2.length; n += 1) {
-                solids2[n].init(1.0, [[1, 1, 1, 1]]);
-                renderObjects.push(solids2[n]);
-            }
+            sphere.init(1.0, [[1, 1, 1, 1]]);
+            renderObjects.push(sphere);
 
             var primitive = graphicsDevice.PRIMITIVE_TRIANGLES;
             var semantics = graphicsDevice.createSemantics([
