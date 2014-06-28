@@ -9,7 +9,6 @@ var PolyhedraManager = (function () {
             topology = solidParams[1],
             defaultSize = solidParams[2] || 0;
         var uvMappingFn = this.uvMappingFns[uvmapping || 'spherical'];
-        console.log(uvmapping, uvMappingFn);
 
         var sqrt = Math.sqrt;
         var colors = this.colors;
@@ -150,7 +149,6 @@ var PolyhedraManager = (function () {
             },
             spherical: function (x, y, z) {
                 var uv = [asin(x) * ipi + 0.5, asin(y) * ipi + 0.5];
-                console.log(uv);
                 return uv;
             },
             cylindrical: function (x, y, z) {
