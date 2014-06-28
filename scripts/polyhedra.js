@@ -58,7 +58,6 @@ var PolyhedraManager = (function () {
             var color = colors[polySize % colors.length];
             var r = color[0], g = color[1], b = color[2], a = color[3];
 
-            var u = 
             data.push(
                 ax, ay, az, nx, ny, nz, r, g, b, a, auv[0], auv[1],
                 cx, cy, cz, nx, ny, nz, r, g, b, a, cuv[0], cuv[1],
