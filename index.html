@@ -32,6 +32,9 @@
         <script type="text/javascript" src="jslib/drawprimitives.js"></script>
 
         <script type="text/javascript" src="scripts/motion.js"></script>
+
+        <script type="text/javascript" src="scripts/polyhedra.js"></script>
+
         <script type="text/javascript" src="scripts/hexahedron.js"></script>
         <script type="text/javascript" src="scripts/tetrahedron.js"></script>
         <script type="text/javascript" src="scripts/icosahedron.js"></script>
@@ -60,67 +63,109 @@
             orbit.setCircularMovement(5.0, origin);
             orbit.setConstantMotion(0.03);
 
-            var scale = 1.0;
-            var clearColor = [0.080, 0.182, 0.299, 1.0];
-            var colors = [
-                [0.722, 0.000, 0.181, 1.000], // red
-                [0.943, 0.573, 0.129, 1.000], // yellow
-                [0.264, 0.781, 0.181, 1.000], // green
-                [0.190, 0.493, 0.872, 1.000], // blue
-                [0.607, 0.094, 0.568, 1.000], // purple
-                [0.199, 0.199, 0.199, 1.000], // grey
-            ]
+            var assetsToLoad = 0;
 
+            var techniques = [ ]
+            var techniqueIndex = 0;
+            var shadersToLoad = [
+                'assets/shaders/debug.cgfx.json',
+                'assets/shaders/shaders.cgfx.json'
+            ];
+            for (var n = 0; n < shadersToLoad.length; n += 1) {
+                shaderManager.load(shadersToLoad[n], function onloadFn(s) {
+                    if (s) {
+                        for (var m = 0; m < s.numTechniques; m += 1) {
+                            techniques.push(s.getTechnique(m));
+                        }
+                    }
+                    assetsToLoad -= 1;
+                });
+                assetsToLoad += 1;
+            }
+
+            var textureIndex = 0;
+            var textures = [
+                graphicsDevice.createTexture({
+                    name: 'check',
+                    width: 2,
+                    height: 2,
+                    depth: 1,
+                    format: 'R8G8B8A8',
+                    cubemap: false,
+                    mipmaps: true,
+                    dynamic: false,
+                    data: [255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255]
+                }),
+                graphicsDevice.createTexture({
+                    name: 'tartan',
+                    width: 2,
+                    height: 2,
+                    depth: 1,
+                    format: 'R8G8B8A8',
+                    cubemap: false,
+                    mipmaps: true,
+                    dynamic: false,
+                    data: [128, 128, 128, 255, 0, 0, 0, 255, 255, 255, 255, 255, 128, 128, 128, 255]
+                }),
+             ];
+            var texturesToLoad = [
+                'debug_assets/textures/uvgrid01.jpg',
+                'debug_assets/textures/uvgrid02.jpg',
+                'debug_assets/textures/uvgrid03.jpg',
+                'debug_assets/textures/uvgrid04.jpg',
+                'debug_assets/textures/uvgrid05.jpg',
+                'debug_assets/textures/uvgrid06.jpg',
+                'debug_assets/textures/uvgrid07.jpg',
+                'debug_assets/textures/uvgrid08.jpg'
+            ];
+            for (var n = 0; n < texturesToLoad.length; n += 1) {
+                graphicsDevice.createTexture({
+                    src: texturesToLoad[n],
+                    mipmaps: true,
+                    onload: function onLoadFn(t) {
+                        if (t) {
+                            textures.push(t);
+                        }
+                        assetsToLoad -= 1;
+                    }
+                });
+                assetsToLoad += 1;
+            }
+
+            var polyhedraManager = PolyhedraManager.create(graphicsDevice, mathDevice);
             var renderIndex = 0;
-            var renderObjects = [ tetrahedron, hexahedron, octahedron, icosahedron, sphere ];
-            for (var n = 0; n < renderObjects.length; n += 1) {
-                renderObjects[n].init(scale, colors);
+            var solids = polyhedraManager.getAll();
+            var renderObjects = [ ];
+            for (var n = 0; n < solids.length; n += 1) {
+                renderObjects.push(polyhedraManager.generate(solids[n]));
             }
 
-            var keyCodes = inputDevice.keyCodes;
-            var keyDown = function keyDownFn(key) {
-                if (key === keyCodes.SPACE) {
-                    orbit.setConstantMotion(0.5);
-                }
-            }
-            var keyUp = function keyUpFn(key) {
-                if (key === keyCodes.SPACE) {
-                    orbit.setConstantMotion(0.05);
-                } else if (key === keyCodes.EQUALS) {
-                    renderIndex += 1;
-                    renderIndex %= renderObjects.length;
-                }
-            }
-            inputDevice.addEventListener('keydown', keyDown);
-            inputDevice.addEventListener('keyup', keyUp);
-  
-            var shader = null;
-            var technique = null;
-
-            var debug = true;
-            if (debug) {
-                shaderManager.load('static/debug.cgfx.json', function onloadFn(s) {
-                    shader = s;
-                    technique = shader.getTechnique("debug_normals");
-                });
-            } else {
-                shaderManager.load('static/shaders.cgfx.json', function onloadFn(s) {
-                    shader = s;
-                    technique = shader.getTechnique("blinn");
-                });
-                
+            var solids2 = [ tetrahedron, hexahedron, octahedron, icosahedron, sphere ];
+            for (var n = 0; n < solids2.length; n += 1) {
+                solids2[n].init(1.0, [[1, 1, 1, 1]]);
+                renderObjects.push(solids2[n]);
             }
 
             var primitive = graphicsDevice.PRIMITIVE_TRIANGLES;
             var semantics = graphicsDevice.createSemantics([
                 graphicsDevice.SEMANTIC_POSITION,
                 graphicsDevice.SEMANTIC_NORMAL,
-                graphicsDevice.SEMANTIC_COLOR
+                graphicsDevice.SEMANTIC_COLOR,
+                graphicsDevice.SEMANTIC_TEXCOORD
             ]);
             var techniqueParameters = graphicsDevice.createTechniqueParameters({
                 constantColor: [1.0, 0.0, 0.0, 1.0],
-                worldInverseTranspose: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+
+                // Blinn
+                worldTranspose: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                worldInverseTranspose: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+                worldViewProjection: null,
+                lightPosition: [2.0, 2.0, -2.0],
+                lightColor: [0.8, 0.8, 0.8],
+                ambientColor: [0.5, 0.5, 0.5],
+                eyePosition: [0.0, 0.0, -2.0]
             });
+            var clearColor = [0.080, 0.182, 0.299, 1.0];
 
             var previousFrameTime = TurbulenzEngine.time;
             var renderFrame = function renderFrameFn() {
@@ -142,7 +187,8 @@
                 if (graphicsDevice.beginFrame()) {
                     graphicsDevice.clear(clearColor);
                     techniqueParameters.worldViewProjection = camera.viewProjectionMatrix;
-                    graphicsDevice.setTechnique(technique);
+                    techniqueParameters['diffuse'] = textures[textureIndex];
+                    graphicsDevice.setTechnique(techniques[techniqueIndex]);
                     graphicsDevice.setTechniqueParameters(techniqueParameters);
 
                     var renderObject = renderObjects[renderIndex];
@@ -163,9 +209,30 @@
                 previousFrameTime = currentTime;
             };
 
+            var keyCodes = inputDevice.keyCodes;
+            inputDevice.addEventListener('keydown', function keyDownFn(key) {
+                if (key === keyCodes.SPACE) {
+                    orbit.setConstantMotion(0.5);
+                }
+            });
+            inputDevice.addEventListener('keyup', function keyUpFn(key) {
+                if (key === keyCodes.SPACE) {
+                    orbit.setConstantMotion(0.05);
+                } else if (key === keyCodes.EQUALS) {
+                    renderIndex += 1;
+                    renderIndex %= renderObjects.length;
+                } else if (key === keyCodes.LEFT_BRACKET) {
+                    techniqueIndex += 1;
+                    techniqueIndex %= techniques.length;
+                } else if (key === keyCodes.RIGHT_BRACKET) {
+                    textureIndex += 1;
+                    textureIndex %= textures.length;
+                }
+            });
+
             var intervalID;
             var loadingLoop = function loadingLoopFn() {
-                if (technique) {
+                if (assetsToLoad === 0) {
                     TurbulenzEngine.clearInterval(intervalID);
                     intervalID = TurbulenzEngine.setInterval(renderFrame, 1000 / 60);
                 }
